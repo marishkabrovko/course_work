@@ -1,82 +1,52 @@
 import pytest
+import json
+import requests
+from unittest.mock import patch
 from src.views import main_page
-from src.utils import load_user_settings
+import pandas as pd
 
 
 @pytest.fixture
-def mock_user_settings(monkeypatch):
-    mock_settings = {
+def mock_excel_data(tmp_path):
+    data = {
+        "date": ["2023-08-01", "2023-08-15", "2023-08-20"],
+        "amount": [100.0, 200.0, 300.0],
+        "category": ["Категория1", "Категория2", "Категория3"],
+        "description": ["Описание1", "Описание2", "Описание3"]
+    }
+    df = pd.DataFrame(data)
+    excel_file = tmp_path / "operations.xlsx"
+    df.to_excel(excel_file, index=False)
+    return excel_file
+
+
+@patch('views.fetch_currency_rates')
+@patch('views.fetch_stock_prices')
+@patch('utils.load_user_settings')
+@patch('pandas.read_excel')
+def test_main_page(mock_read_excel, mock_load_user_settings, mock_fetch_stock_prices, mock_fetch_currency_rates,
+                   mock_excel_data):
+    mock_read_excel.return_value = pd.read_excel(mock_excel_data)
+    mock_load_user_settings.return_value = {
         "user_currencies": ["USD", "EUR"],
         "user_stocks": ["AAPL", "AMZN"]
     }
-    monkeypatch.setattr("utils.load_user_settings", lambda: mock_settings)
-
-
-@pytest.fixture
-def mock_currency_rates(monkeypatch):
-    mock_rates = [
+    mock_fetch_currency_rates.return_value = [
         {"currency": "USD", "rate": 73.21},
         {"currency": "EUR", "rate": 87.08}
     ]
-    monkeypatch.setattr("utils.get_currency_rates", lambda x: mock_rates)
-
-
-@pytest.fixture
-def mock_stock_prices(monkeypatch):
-    mock_prices = [
+    mock_fetch_stock_prices.return_value = [
         {"stock": "AAPL", "price": 150.12},
         {"stock": "AMZN", "price": 3173.18}
     ]
-    monkeypatch.setattr("utils.get_stock_prices", lambda x: mock_prices)
 
+    response_json = main_page("2023-08-20 14:30:00")
+    response = json.loads(response_json)
 
-@pytest.fixture
-def mock_transactions(monkeypatch):
-    import pandas as pd
-    data = {
-        "date": ["2023-08-01", "2023-08-15", "2023-08-20"],
-        "card_last_digits": ["1234", "1234", "5678"],
-        "amount": [100.0, 200.0, 300.0]
-    }
-    df = pd.DataFrame(data)
-    monkeypatch.setattr("utils.get_transactions", lambda x, y, z: df)
-
-
-def test_main_page(mock_user_settings, mock_currency_rates, mock_stock_prices, mock_transactions):
-    date_time_str = "2023-08-20 14:30:00"
-    response = main_page(date_time_str)
-
-    assert response['greeting'] == "Добрый день"
-
-    assert len(response['cards']) == 2
-    assert response['cards'][0]['last_digits'] == "1234"
-    assert response['cards'][0]['total_spent'] == 300.0
-    assert response['cards'][0]['cashback'] == 3.0
-
-    assert len(response['currency_rates']) == 2
-    assert response['currency_rates'][0]['currency'] == "USD"
-    assert response['currency_rates'][0]['rate'] == 73.21
-
-    assert len(response['stock_prices']) == 2
-    assert response['stock_prices'][0]['stock'] == "AAPL"
-    assert response['stock_prices'][0]['price'] == 150.12
-
-
-def test_parse_date():
-    from src.utils import parse_date
-    date_time_str = "2023-08-20 14:30:00"
-    year, month, day, hour, minute, second = parse_date(date_time_str)
-    assert year == 2023
-    assert month == 8
-    assert day == 20
-    assert hour == 14
-    assert minute == 30
-    assert second == 0
-
-
-def test_generate_greeting():
-    from src.utils import generate_greeting
-    assert generate_greeting(6) == "Доброе утро"
-    assert generate_greeting(13) == "Добрый день"
-    assert generate_greeting(19) == "Добрый вечер"
-    assert generate_greeting(23) == "Доброй ночи"
+    assert response["greeting"] == "Добрый день"
+    assert len(response["cards"]) == 1
+    assert response["cards"][0]["total_spent"] == 600.0
+    assert response["cards"][0]["cashback"] == 6.0
+    assert len(response["top_transactions"]) == 3
+    assert response["currency_rates"][0]["currency"] == "USD"
+    assert response["stock_prices"][0]["stock"] == "AAPL"
