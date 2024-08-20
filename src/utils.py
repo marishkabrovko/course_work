@@ -1,21 +1,23 @@
-import pandas as pd
+# src/utils.py
+
 import json
+import requests
+import pandas as pd
+from datetime import datetime
 import logging
-from typing import List, Dict, Tuple
 
-
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
-USER_SETTINGS_PATH = "user_settings.json"
+
+def parse_date(date_time_str):
+    try:
+        dt = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
+        return dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
+    except ValueError:
+        raise ValueError("Invalid date format")
 
 
-def parse_date(date_time_str: str) -> Tuple[int, int, int, int, int, int]:
-    dt = pd.to_datetime(date_time_str, format="%Y-%m-%d %H:%M:%S")
-    return dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
-
-
-def generate_greeting(hour: int) -> str:
+def generate_greeting(hour):
     if 5 <= hour < 12:
         return "Доброе утро"
     elif 12 <= hour < 18:
@@ -26,29 +28,48 @@ def generate_greeting(hour: int) -> str:
         return "Доброй ночи"
 
 
-def get_start_of_month(year: int, month: int) -> str:
-    return f"{year:04d}-{month:02d}-01"
+def get_start_of_month(year, month):
+    return f"{year}-{month:02d}-01"
 
 
-def calculate_spending_and_cashback(df: pd.DataFrame) -> Tuple[float, float]:
-    total_spent = df['amount'].sum()
-    cashback = total_spent * 0.01
+def calculate_spending_and_cashback(df):
+    total_spent = df["amount"].sum()
+    cashback = total_spent / 100
     return total_spent, cashback
 
 
-def get_top_transactions(df: pd.DataFrame, top_n: int = 5) -> List[Dict]:
-    top_transactions = df.nlargest(top_n, 'amount').to_dict(orient='records')
-    return top_transactions
+def get_top_transactions(df, top_n=3):
+    top_transactions = df.nlargest(top_n, "amount")[["date", "amount", "category", "description"]]
+    return top_transactions.to_dict(orient="records")
 
 
-def load_user_settings() -> Dict:
-    try:
-        with open(USER_SETTINGS_PATH, "r") as f:
-            settings = json.load(f)
-    except FileNotFoundError:
-        logging.error(f"User settings file not found: {USER_SETTINGS_PATH}")
-        settings = {"user_currencies": [], "user_stocks": []}
-    except json.JSONDecodeError:
-        logging.error(f"Error decoding JSON from user settings file: {USER_SETTINGS_PATH}")
-        settings = {"user_currencies": [], "user_stocks": []}
+def fetch_currency_rates(currencies):
+    API_KEY = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
+    BASE_URL = "https://api.apilayer.com/exchangerates_data/latest"
+    headers = {"apikey": API_KEY}
+
+    response = requests.get(BASE_URL, headers=headers)
+    data = response.json()
+
+    rates = [{"currency": currency, "rate": data["rates"].get(currency, "N/A")} for currency in currencies]
+    return rates
+
+
+def fetch_stock_prices(stocks):
+    API_KEY = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
+    BASE_URL = "https://api.apilayer.com/exchangerates_data/latest"
+    headers = {"apikey": API_KEY}
+
+    response = requests.get(BASE_URL, headers=headers)
+    data = response.json()
+
+    # Замените на реальный API для получения цен акций
+    # Заглушка
+    prices = [{"stock": stock, "price": "N/A"} for stock in stocks]
+    return prices
+
+
+def load_user_settings():
+    with open('user_settings.json', 'r', encoding='utf-8') as file:
+        settings = json.load(file)
     return settings
