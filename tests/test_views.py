@@ -1,6 +1,5 @@
 import pytest
 import json
-import requests
 from unittest.mock import patch
 from src.views import main_page
 import pandas as pd
@@ -20,12 +19,38 @@ def mock_excel_data(tmp_path):
     return excel_file
 
 
-@patch('views.fetch_currency_rates')
-@patch('views.fetch_stock_prices')
-@patch('utils.load_user_settings')
+@patch('src.views.fetch_currency_rates')
+@patch('src.views.fetch_stock_prices')
+@patch('src.utils.load_user_settings')
 @patch('pandas.read_excel')
-def test_main_page(mock_read_excel, mock_load_user_settings, mock_fetch_stock_prices, mock_fetch_currency_rates,
-                   mock_excel_data):
+@patch('requests.get')
+def test_main_page(mock_requests_get, mock_read_excel, mock_load_user_settings, mock_fetch_stock_prices,
+                   mock_fetch_currency_rates, mock_excel_data):
+    def mock_requests_get_side_effect(url, headers=None):
+        if "latest" in url:
+            return MockResponse({
+                "rates": {
+                    "USD": 73.21,
+                    "EUR": 87.08
+                }
+            }, 200)
+        elif "stocks" in url:
+            return MockResponse({
+                "AAPL": 150.12,
+                "AMZN": 3173.18
+            }, 200)
+        return MockResponse({}, 404)
+
+    class MockResponse:
+        def __init__(self, json_data, status_code):
+            self.json_data = json_data
+            self.status_code = status_code
+
+        def json(self):
+            return self.json_data
+
+    mock_requests_get.side_effect = mock_requests_get_side_effect
+
     mock_read_excel.return_value = pd.read_excel(mock_excel_data)
     mock_load_user_settings.return_value = {
         "user_currencies": ["USD", "EUR"],
