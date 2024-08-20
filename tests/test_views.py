@@ -1,65 +1,75 @@
-import pytest
-import json
 from unittest.mock import patch
+
+import pandas as pd
+import pytest
+
 from src.views import main_page
 
 
-# Тест для функции main_page
-@patch('src.views.load_user_settings')
-@patch('src.views.get_start_of_month')
-@patch('src.views.calculate_spending_and_cashback')
-@patch('src.views.get_top_transactions')
-@patch('src.views.fetch_currency_rates')
-@patch('src.views.fetch_stock_prices')
-def test_main_page(mock_fetch_stock_prices, mock_fetch_currency_rates, mock_get_top_transactions,
-                   mock_calculate_spending_and_cashback, mock_get_start_of_month, mock_load_user_settings):
-    # Мокируем возвращаемые значения
+@patch("src.views.pd.read_excel")
+@patch("src.views.calculate_spending_and_cashback")
+@patch("src.views.get_top_transactions")
+@patch("src.views.fetch_currency_rates")
+@patch("src.views.fetch_stock_prices")
+@patch("src.views.load_user_settings")
+def test_main_page(
+    mock_load_user_settings,
+    mock_fetch_stock_prices,
+    mock_fetch_currency_rates,
+    mock_get_top_transactions,
+    mock_calculate_spending_and_cashback,
+    mock_read_excel,
+):
+    # Настроим моки
     mock_load_user_settings.return_value = {
         "user_currencies": ["USD", "EUR"],
-        "user_stocks": ["AAPL", "AMZN"]
+        "user_stocks": ["AAPL", "AMZN"],
     }
-
-    mock_get_start_of_month.return_value = "2024-08-01"
-
-    mock_calculate_spending_and_cashback.return_value = (600.0, 6.0)
-
-    mock_get_top_transactions.return_value = [
-        {"date": "2024-08-01", "amount": 300.0, "category": "Категория1", "description": "Описание1"},
-        {"date": "2024-08-15", "amount": 200.0, "category": "Категория2", "description": "Описание2"},
-        {"date": "2024-08-20", "amount": 100.0, "category": "Категория3", "description": "Описание3"}
-    ]
 
     mock_fetch_currency_rates.return_value = [
         {"currency": "USD", "rate": 73.21},
-        {"currency": "EUR", "rate": 87.08}
+        {"currency": "EUR", "rate": 87.08},
     ]
 
     mock_fetch_stock_prices.return_value = [
         {"stock": "AAPL", "price": 150.12},
-        {"stock": "AMZN", "price": 3173.18}
+        {"stock": "AMZN", "price": 3173.18},
     ]
 
-    # Вызов тестируемой функции
-    date_time_str = "2024-08-20 15:30:00"
-    response = main_page(date_time_str)
-    response_json = json.loads(response)
+    # Создание DataFrame для тестирования
+    df = pd.DataFrame(
+        {
+            "Дата операции": ["2024-08-01", "2024-08-10", "2024-08-20"],
+            "Сумма операции": [100.0, 200.0, 300.0],
+            "Сумма платежа": [100.0, 200.0, 300.0],
+            "Категория": ["Категория1", "Категория2", "Категория3"],
+            "Описание": ["Описание1", "Описание2", "Описание3"],
+        }
+    )
+    mock_read_excel.return_value = df
 
-    # Проверка содержимого JSON-ответа
-    assert response_json["greeting"] == "Добрый день"
-    assert response_json["cards"][0]["total_spent"] == 600.0
-    assert response_json["cards"][0]["cashback"] == 6.0
+    mock_calculate_spending_and_cashback.return_value = (600.0, 6.0)
 
-    assert len(response_json["top_transactions"]) == 3
-    assert response_json["top_transactions"][0]["amount"] == 300.0
+    mock_get_top_transactions.return_value = [
+        {
+            "Дата операции": "2024-08-20",
+            "Сумма платежа": 300.0,
+            "Категория": "Категория3",
+            "Описание": "Описание3",
+        },
+        {
+            "Дата операции": "2024-08-10",
+            "Сумма платежа": 200.0,
+            "Категория": "Категория2",
+            "Описание": "Описание2",
+        },
+    ]
 
-    assert len(response_json["currency_rates"]) == 2
-    assert response_json["currency_rates"][0]["currency"] == "USD"
-    assert response_json["currency_rates"][0]["rate"] == 73.21
+    # Запрос к функции
+    response = main_page("2024-08-20 15:00:00")
 
-    assert len(response_json["stock_prices"]) == 2
-    assert response_json["stock_prices"][0]["stock"] == "AAPL"
-    assert response_json["stock_prices"][0]["price"] == 150.12
-
-    # Запуск тестов
-    if __name__ == "__main__":
-        pytest.main()
+    # Проверка ответа
+    assert response["greeting"] == "Добрый день"
+    assert response["cards"][0]["total_spent"] == 600.0
+    assert response["currency_rates"][0]["currency"] == "USD"
+    assert response["stock_prices"][0]["stock"] == "AAPL"

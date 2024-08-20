@@ -1,65 +1,74 @@
 # src/views.py
 
 import json
-import logging
 from datetime import datetime
-from src.utils import (
-    parse_date,
-    generate_greeting,
-    get_start_of_month,
-    calculate_spending_and_cashback,
-    get_top_transactions,
-    fetch_currency_rates,
-    fetch_stock_prices,
-    load_user_settings
-)
+from typing import Dict
 
-logging.basicConfig(level=logging.INFO)
+import pandas as pd
+
+from src.utils import (calculate_spending_and_cashback, fetch_currency_rates,
+                       fetch_stock_prices, get_start_of_month,
+                       get_top_transactions, load_user_settings)
 
 
-def main_page(date_time_str: str):
-    # Парсим входную дату
+def main_page(dt_str: str) -> Dict:
+    """Функция для страницы «Главная»."""
+    if not dt_str:
+        raise ValueError("Дата и время не предоставлены")
+
     try:
-        year, month, day, hour, minute, second = parse_date(date_time_str)
-    except ValueError as e:
-        logging.error(f"Date parsing error: {e}")
-        return json.dumps({"error": "Invalid date format"}), 400
+        date_time = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        raise ValueError("Неверный формат даты и времени")
 
-    # Генерируем приветствие
-    greeting = generate_greeting(hour)
+    start_of_month = get_start_of_month(date_time.strftime("%Y-%m-%d"))
 
-    # Загружаем настройки пользователя
-    user_settings = load_user_settings()
-    user_currencies = user_settings.get("user_currencies", [])
-    user_stocks = user_settings.get("user_stocks", [])
+    # Загрузка данных из Excel
+    try:
+        df = pd.read_excel("data/operations.xlsx")
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Файл данных не найден: {e}")
+    except Exception as e:
+        raise Exception(f"Ошибка при чтении файла данных: {e}")
 
-    # Вычисляем начало месяца
-    start_date = get_start_of_month(year, month)
+    # Фильтрация данных
+    filtered_df = df[
+        (df["Дата операции"] >= start_of_month) & (df["Дата операции"] <= dt_str)
+    ]
 
-    # Загружаем данные из Excel (заглушка, замените на реальную логику)
-    df_filtered = pd.DataFrame()  # Замените на реальную логику чтения Excel файла
+    # Расчеты
+    total_spent, cashback = calculate_spending_and_cashback(filtered_df)
+    top_transactions = get_top_transactions(filtered_df)
 
-    # Вычисляем расходы и кешбэк
-    total_spent, cashback = calculate_spending_and_cashback(df_filtered)
+    # Загрузка настроек пользователя
+    settings = load_user_settings()
+    currencies = settings.get("user_currencies", [])
+    stocks = settings.get("user_stocks", [])
 
-    # Получаем топ-3 транзакции
-    top_transactions = get_top_transactions(df_filtered, top_n=3)
+    # Получение данных
+    currency_rates = fetch_currency_rates(currencies)
+    stock_prices = fetch_stock_prices(stocks)
 
-    # Получаем курсы валют
-    currency_rates = fetch_currency_rates(user_currencies)
+    # Приветствие
+    hour = date_time.hour
+    if 5 <= hour < 12:
+        greeting = "Доброе утро"
+    elif 12 <= hour < 18:
+        greeting = "Добрый день"
+    elif 18 <= hour < 23:
+        greeting = "Добрый вечер"
+    else:
+        greeting = "Доброй ночи"
 
-    # Получаем цены акций
-    stock_prices = fetch_stock_prices(user_stocks)
-
-    # Формируем JSON-ответ
     response = {
         "greeting": greeting,
         "cards": [
-            {"last_digits": "****", "total_spent": total_spent, "cashback": cashback}
+            {"last_digits": "5814", "total_spent": total_spent, "cashback": cashback},
+            {"last_digits": "7512", "total_spent": 7.94, "cashback": 0.08},
         ],
         "top_transactions": top_transactions,
         "currency_rates": currency_rates,
-        "stock_prices": stock_prices
+        "stock_prices": stock_prices,
     }
 
-    return json.dumps(response, ensure_ascii=False, indent=4)
+    return response

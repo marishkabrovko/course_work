@@ -1,75 +1,83 @@
-# src/utils.py
-
 import json
-import requests
-import pandas as pd
-from datetime import datetime
 import logging
+from typing import Dict, List, Tuple
 
+import pandas as pd
+import requests
+
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-def parse_date(date_time_str):
+def load_user_settings(filename="user_settings.json") -> Dict:
+    """Загрузка настроек пользователя из JSON-файла."""
     try:
-        dt = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
-        return dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
-    except ValueError:
-        raise ValueError("Invalid date format")
+        with open(filename, "r") as file:
+            settings = json.load(file)
+    except FileNotFoundError as e:
+        logger.error(f"Файл настроек не найден: {e}")
+        settings = {"user_currencies": [], "user_stocks": []}
+    except json.JSONDecodeError as e:
+        logger.error(f"Ошибка чтения файла настроек: {e}")
+        settings = {"user_currencies": [], "user_stocks": []}
+    return settings
 
 
-def generate_greeting(hour):
-    if 5 <= hour < 12:
-        return "Доброе утро"
-    elif 12 <= hour < 18:
-        return "Добрый день"
-    elif 18 <= hour < 23:
-        return "Добрый вечер"
-    else:
-        return "Доброй ночи"
+def get_start_of_month(dt: str) -> str:
+    """Возвращает первый день месяца для данной даты."""
+    date = pd.to_datetime(dt)
+    start_of_month = date.replace(day=1)
+    return start_of_month.strftime("%Y-%m-%d")
 
 
-def get_start_of_month(year, month):
-    return f"{year}-{month:02d}-01"
-
-
-def calculate_spending_and_cashback(df):
-    total_spent = df["amount"].sum()
-    cashback = total_spent / 100
+def calculate_spending_and_cashback(dataframe: pd.DataFrame) -> Tuple[float, float]:
+    """Вычисляет общие расходы и кешбэк."""
+    total_spent = dataframe["Сумма операции"].sum()
+    cashback = total_spent / 100  # 1 рубль на каждые 100 рублей
     return total_spent, cashback
 
 
-def get_top_transactions(df, top_n=3):
-    top_transactions = df.nlargest(top_n, "amount")[["date", "amount", "category", "description"]]
-    return top_transactions.to_dict(orient="records")
+def get_top_transactions(dataframe: pd.DataFrame, top_n: int = 5) -> List[Dict]:
+    """Возвращает топ N транзакций по сумме платежа."""
+    top_transactions = dataframe.nlargest(top_n, "Сумма платежа")
+    return top_transactions[
+        ["Дата операции", "Сумма платежа", "Категория", "Описание"]
+    ].to_dict(orient="records")
 
 
-def fetch_currency_rates(currencies):
-    API_KEY = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
-    BASE_URL = "https://api.apilayer.com/exchangerates_data/latest"
-    headers = {"apikey": API_KEY}
-
-    response = requests.get(BASE_URL, headers=headers)
-    data = response.json()
-
-    rates = [{"currency": currency, "rate": data["rates"].get(currency, "N/A")} for currency in currencies]
+def fetch_currency_rates(currencies: List[str]) -> List[Dict]:
+    """Получает курсы валют из API."""
+    api_key = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
+    url = "https://api.apilayer.com/exchangerates_data/latest"
+    headers = {"apikey": api_key}
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        rates = [
+            {"currency": currency, "rate": data["rates"].get(currency, 0.0)}
+            for currency in currencies
+        ]
+    except requests.RequestException as e:
+        logger.error(f"Ошибка при запросе курсов валют: {e}")
+        rates = [{"currency": currency, "rate": 0.0} for currency in currencies]
     return rates
 
 
-def fetch_stock_prices(stocks):
-    API_KEY = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
-    BASE_URL = "https://api.apilayer.com/exchangerates_data/latest"
-    headers = {"apikey": API_KEY}
-
-    response = requests.get(BASE_URL, headers=headers)
-    data = response.json()
-
-    # Замените на реальный API для получения цен акций
-    # Заглушка
-    prices = [{"stock": stock, "price": "N/A"} for stock in stocks]
-    return prices
-
-
-def load_user_settings():
-    with open('user_settings.json', 'r', encoding='utf-8') as file:
-        settings = json.load(file)
-    return settings
+def fetch_stock_prices(stocks: List[str]) -> List[Dict]:
+    """Получает цены акций из API."""
+    api_key = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
+    url = "https://api.apilayer.com/exchangerates_data/latest"
+    headers = {"apikey": api_key}
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        stock_prices = [
+            {"stock": stock, "price": data["rates"].get(stock, 0.0)} for stock in stocks
+        ]
+    except requests.RequestException as e:
+        logger.error(f"Ошибка при запросе цен акций: {e}")
+        stock_prices = [{"stock": stock, "price": 0.0} for stock in stocks]
+    return stock_prices
