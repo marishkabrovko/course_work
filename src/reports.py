@@ -1,65 +1,30 @@
+import datetime
 import json
-import functools
 import logging
-import sys
-from typing import Optional, Callable, Any, Dict
+from turtle import pd
+from typing import Any, Callable, List, Optional
+
 import pandas as pd
-from datetime import datetime, timedelta
+
+from src.decorators import decorator_spending_by_category
+from src.read_excel import read_excel
+
+logger = logging.getLogger("report.log")
+file_handler = logging.FileHandler("report.log", "w")
+file_formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+logger.setLevel(logging.INFO)
 
 
-def log(filename: Optional[str] = None) -> Callable:
-    """Декоратор для логирования выполнения функций."""
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            logger = logging.getLogger(func.__name__)
-            logger.setLevel(logging.INFO)
-
-            if filename:
-                handler = logging.FileHandler(filename)
-            else:
-                handler = logging.StreamHandler(sys.stdout)
-
-            handler.setLevel(logging.INFO)
-            formatter = logging.Formatter("%(message)s")
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-
-            try:
-                result = func(*args, **kwargs)
-                logger.info(f"{func.__name__} ok")
-                return result
-            except Exception as e:
-                logger.error(f"{func.__name__} error: {e}. Inputs: {args}, {kwargs}")
-                raise
-            finally:
-                logger.removeHandler(handler)
-                handler.close()
-
-        return wrapper
-
-    return decorator
-
-
-def save_report(filename: Optional[str] = None) -> Callable:
-    """Декоратор для сохранения отчета в файл."""
+def log_spending_by_category(filename: Any) -> Callable:
+    """Логирует результат функции в указанный файл"""
 
     def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            result = func(*args, **kwargs)
-            # Используем значение по умолчанию, если filename не передан
-            if filename is None:
-                filename = "report.json"
-
-            # Преобразование значений в стандартные типы перед сохранением в JSON
-            if isinstance(result, dict):
-                result = {k: int(v) for k, v in result.items()}
-
-            with open(filename, "w", encoding="utf-8") as f:
-                json.dump(result, f, ensure_ascii=False, indent=4)
-            logging.info(f"Report saved to {filename}")
+            result = func(*args, **kwargs).to_dict("records")
+            with open(filename, "w") as f:
+                json.dump(result, f, indent=4)
             return result
 
         return wrapper
@@ -67,26 +32,49 @@ def save_report(filename: Optional[str] = None) -> Callable:
     return decorator
 
 
-@log()  # Логируем информацию о выполнении функции
-@save_report()  # Сохраняем отчет в файл с именем по умолчанию
-def spending_by_category(transactions: pd.DataFrame, category: str, date: Optional[str] = None) -> Dict[str, int]:
-    """Возвращает траты по заданной категории за последние три месяца."""
+@decorator_spending_by_category
+def spending_by_category(
+    transactions: pd.DataFrame, category: str, date: Optional[str] = None
+) -> list[Any]:
+    """Функция возвращающая траты за последние 3 месяца по заданной категории"""
+    logger.info("Начало работы")
+    list_by_category = []
+    final_list = []
     if date is None:
-        date = datetime.now().strftime('%Y-%m-%d')
-
-    date = datetime.strptime(date, '%Y-%m-%d')
-    three_months_ago = date - timedelta(days=90)
-
-    # Преобразование даты в колонке
-    transactions["Дата операции"] = pd.to_datetime(transactions["Дата операции"], format='%Y-%m-%d')
-
-    # Фильтрация данных по категории и дате
-    filtered_data = transactions[
-        (transactions["Категория"] == category) &
-        (transactions["Дата операции"] >= three_months_ago)
-        ]
-
-    # Подсчет трат
-    total_spending = filtered_data["Сумма операции"].sum()
-
-    return {category: total_spending}
+        logger.info("Вариант обработки с настоящей датой")
+        date_start = datetime.datetime.now() - datetime.timedelta(days=90)
+        logger.info("Формирование списка по категории")
+        for i in transactions:
+            if i["Категория"] == category:
+                list_by_category.append(i)
+        logger.info("Фильтрация на пропущенные даты")
+        for i in list_by_category:
+            if i["Дата платежа"] == "nan" or type(i["Дата платежа"]) == float:
+                continue
+            elif (
+                date_start
+                <= datetime.datetime.strptime(str(i["Дата платежа"]), "%d.%m.%Y")
+                <= date_start + datetime.timedelta(days=90)
+            ):
+                final_list.append(i["Сумма платежа"])
+        return final_list
+    else:
+        logger.info("Вариант обработки с введенной датой")
+        day, month, year = date.split(".")
+        date_obj = datetime.datetime(int(year), int(month), int(day))
+        date_start = date_obj - datetime.timedelta(days=90)
+        logger.info("Формирование списка по категории")
+        for i in transactions:
+            if i["Категория"] == category:
+                list_by_category.append(i)
+        logger.info("Фильтрация на пропущенные даты")
+        for i in list_by_category:
+            if i["Дата платежа"] == "nan" or type(i["Дата платежа"]) == float:
+                continue
+            else:
+                day_, month_, year_ = i["Дата платежа"].split(".")
+                date_obj_ = datetime.datetime(int(year), int(month), int(day))
+                if date_start <= date_obj_ <= date_start + datetime.timedelta(days=90):
+                    final_list.append(i["Сумма платежа"])
+                    logger.info("Формирование списка по тратам")
+        return final_list
