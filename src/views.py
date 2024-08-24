@@ -1,8 +1,6 @@
-# src/views.py
-
 import json
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Any
 
 import pandas as pd
 
@@ -11,8 +9,9 @@ from src.utils import (calculate_spending_and_cashback, fetch_currency_rates,
                        get_top_transactions, load_user_settings)
 
 
-def main_page(dt_str: str) -> Dict:
-    """Функция для страницы «Главная»."""
+def main_page(df: pd.DataFrame, dt_str: str) -> str:
+    """Функция для страницы «Главная», принимает на вход DataFrame и строку с датой и временем."""
+
     if not dt_str:
         raise ValueError("Дата и время не предоставлены")
 
@@ -23,15 +22,7 @@ def main_page(dt_str: str) -> Dict:
 
     start_of_month = get_start_of_month(date_time.strftime("%Y-%m-%d"))
 
-    # Загрузка данных из Excel
-    try:
-        df = pd.read_excel("data/operations.xlsx")
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"Файл данных не найден: {e}")
-    except Exception as e:
-        raise Exception(f"Ошибка при чтении файла данных: {e}")
-
-    # Фильтрация данных
+    # Фильтрация данных по дате
     filtered_df = df[
         (df["Дата операции"] >= start_of_month) & (df["Дата операции"] <= dt_str)
     ]
@@ -60,15 +51,28 @@ def main_page(dt_str: str) -> Dict:
     else:
         greeting = "Доброй ночи"
 
+    # Формирование JSON-ответа
     response = {
         "greeting": greeting,
         "cards": [
-            {"last_digits": "5814", "total_spent": total_spent, "cashback": cashback},
+            {"last_digits": "5814", "total_spent": round(total_spent, 2), "cashback": round(cashback, 2)},
             {"last_digits": "7512", "total_spent": 7.94, "cashback": 0.08},
         ],
-        "top_transactions": top_transactions,
-        "currency_rates": currency_rates,
-        "stock_prices": stock_prices,
+        "top_transactions": [
+            {
+                "date": tx["Дата операции"].strftime("%d.%m.%Y"),
+                "amount": round(tx["Сумма платежа"], 2),
+                "category": tx["Категория"],
+                "description": tx.get("Описание", "")
+            } for tx in top_transactions
+        ],
+        "currency_rates": [
+            {"currency": rate["currency"], "rate": round(rate["rate"], 2)} for rate in currency_rates
+        ],
+        "stock_prices": [
+            {"stock": stock["stock"], "price": round(stock["price"], 2)} for stock in stock_prices
+        ]
     }
 
-    return response
+    # Преобразование ответа в JSON-строку
+    return json.dumps(response, ensure_ascii=False, indent=4)

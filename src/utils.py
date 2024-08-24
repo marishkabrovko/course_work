@@ -11,8 +11,13 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Загрузка переменных окружения из .env.template
-load_dotenv(".env.template")
+# Загрузка переменных окружения из .env файла
+load_dotenv()
+
+# Загрузка API ключей из .env файла
+CURRENCY_API_KEY = os.getenv("CURRENCY_API_KEY")
+STOCK_API_KEY = os.getenv("STOCK_API_KEY")
+
 
 def load_user_settings(filename="user_settings.json") -> Dict:
     """Загрузка настроек пользователя из JSON-файла."""
@@ -52,9 +57,8 @@ def get_top_transactions(dataframe: pd.DataFrame, top_n: int = 5) -> List[Dict]:
 
 def fetch_currency_rates(currencies: List[str]) -> List[Dict]:
     """Получает курсы валют из API."""
-    api_key = os.getenv("API_KEY")
-    url = "https://api.apilayer.com/exchangerates_data/latest"
-    headers = {"apikey": api_key}
+    url = f"https://api.apilayer.com/exchangerates_data/latest"
+    headers = {"apikey": CURRENCY_API_KEY}
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
@@ -71,9 +75,8 @@ def fetch_currency_rates(currencies: List[str]) -> List[Dict]:
 
 def fetch_stock_prices(stocks: List[str]) -> List[Dict]:
     """Получает цены акций из API."""
-    api_key = os.getenv("API_KEY")
-    url = "https://api.apilayer.com/exchangerates_data/latest"
-    headers = {"apikey": api_key}
+    url = f"https://api.apilayer.com/exchangerates_data/latest"
+    headers = {"apikey": STOCK_API_KEY}
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
