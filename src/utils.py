@@ -1,14 +1,18 @@
 import json
 import logging
 from typing import Dict, List, Tuple
+import os
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Загрузка переменных окружения из .env.template
+load_dotenv(".env.template")
 
 def load_user_settings(filename="user_settings.json") -> Dict:
     """Загрузка настроек пользователя из JSON-файла."""
@@ -48,7 +52,7 @@ def get_top_transactions(dataframe: pd.DataFrame, top_n: int = 5) -> List[Dict]:
 
 def fetch_currency_rates(currencies: List[str]) -> List[Dict]:
     """Получает курсы валют из API."""
-    api_key = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
+    api_key = os.getenv("API_KEY")
     url = "https://api.apilayer.com/exchangerates_data/latest"
     headers = {"apikey": api_key}
     try:
@@ -67,7 +71,7 @@ def fetch_currency_rates(currencies: List[str]) -> List[Dict]:
 
 def fetch_stock_prices(stocks: List[str]) -> List[Dict]:
     """Получает цены акций из API."""
-    api_key = "DLQ8Gc6x9Rz7TkYRRNIKLtdJZTqrSU8z"
+    api_key = os.getenv("API_KEY")
     url = "https://api.apilayer.com/exchangerates_data/latest"
     headers = {"apikey": api_key}
     try:
