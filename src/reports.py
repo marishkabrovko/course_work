@@ -7,8 +7,9 @@ import pandas as pd
 
 from src.decorators import decorator_spending_by_category
 from src.read_excel import read_excel
-from src.utils import fetch_currency_rates, fetch_stock_prices, calculate_spending_and_cashback, get_top_transactions, \
-    load_user_settings
+from src.utils import (calculate_spending_and_cashback, fetch_currency_rates,
+                       fetch_stock_prices, get_top_transactions,
+                       load_user_settings)
 
 logger = logging.getLogger("report.log")
 file_handler = logging.FileHandler("report.log", "w")
@@ -35,7 +36,7 @@ def log_spending_by_category(filename: Any) -> Callable:
 
 @decorator_spending_by_category
 def spending_by_category(
-        transactions: pd.DataFrame, category: str, date: Optional[str] = None
+    transactions: pd.DataFrame, category: str, date: Optional[str] = None
 ) -> dict:
     """Функция возвращающая траты за последние 3 месяца по заданной категории и формирующая JSON-ответ"""
 
@@ -52,9 +53,12 @@ def spending_by_category(
 
     logger.info("Фильтрация транзакций по категории и дате")
     filtered_transactions = transactions[
-        (transactions["Категория"] == category) &
-        (pd.to_datetime(transactions["Дата платежа"], format="%d.%m.%Y") >= date_start)
-        ]
+        (transactions["Категория"] == category)
+        & (
+            pd.to_datetime(transactions["Дата платежа"], format="%d.%m.%Y")
+            >= date_start
+        )
+    ]
 
     total_spent, cashback = calculate_spending_and_cashback(filtered_transactions)
     top_transactions = get_top_transactions(filtered_transactions)
@@ -89,11 +93,12 @@ def spending_by_category(
                 "date": t["Дата операции"],
                 "amount": t["Сумма платежа"],
                 "category": t["Категория"],
-                "description": t["Описание"]
-            } for t in top_transactions
+                "description": t["Описание"],
+            }
+            for t in top_transactions
         ],
         "currency_rates": currency_rates,
-        "stock_prices": stock_prices
+        "stock_prices": stock_prices,
     }
 
     logger.info("Формирование завершено")

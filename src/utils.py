@@ -1,7 +1,7 @@
 import json
 import logging
-from typing import Dict, List, Tuple
 import os
+from typing import Dict, List, Tuple
 
 import pandas as pd
 import requests

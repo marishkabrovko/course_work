@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 import pandas as pd
 
@@ -55,7 +55,11 @@ def main_page(df: pd.DataFrame, dt_str: str) -> str:
     response = {
         "greeting": greeting,
         "cards": [
-            {"last_digits": "5814", "total_spent": round(total_spent, 2), "cashback": round(cashback, 2)},
+            {
+                "last_digits": "5814",
+                "total_spent": round(total_spent, 2),
+                "cashback": round(cashback, 2),
+            },
             {"last_digits": "7512", "total_spent": 7.94, "cashback": 0.08},
         ],
         "top_transactions": [
@@ -63,15 +67,18 @@ def main_page(df: pd.DataFrame, dt_str: str) -> str:
                 "date": tx["Дата операции"].strftime("%d.%m.%Y"),
                 "amount": round(tx["Сумма платежа"], 2),
                 "category": tx["Категория"],
-                "description": tx.get("Описание", "")
-            } for tx in top_transactions
+                "description": tx.get("Описание", ""),
+            }
+            for tx in top_transactions
         ],
         "currency_rates": [
-            {"currency": rate["currency"], "rate": round(rate["rate"], 2)} for rate in currency_rates
+            {"currency": rate["currency"], "rate": round(rate["rate"], 2)}
+            for rate in currency_rates
         ],
         "stock_prices": [
-            {"stock": stock["stock"], "price": round(stock["price"], 2)} for stock in stock_prices
-        ]
+            {"stock": stock["stock"], "price": round(stock["price"], 2)}
+            for stock in stock_prices
+        ],
     }
 
     # Преобразование ответа в JSON-строку

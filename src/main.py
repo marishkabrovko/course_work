@@ -1,17 +1,14 @@
-import pandas as pd
 from datetime import datetime
 
-# Импорт функций из модулей
-from src.views import main_page
+import pandas as pd
+
 from src.reports import spending_by_category
 from src.services import cashback_analysis
-from src.utils import (
-    load_user_settings,
-    fetch_currency_rates,
-    fetch_stock_prices,
-    calculate_spending_and_cashback,
-    get_top_transactions,
-)
+from src.utils import (calculate_spending_and_cashback, fetch_currency_rates,
+                       fetch_stock_prices, get_top_transactions,
+                       load_user_settings)
+# Импорт функций из модулей
+from src.views import main_page
 
 
 def load_transactions(file_path):
