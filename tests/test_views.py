@@ -1,9 +1,12 @@
-import pytest
-import pandas as pd
 import json
-from unittest.mock import patch
-from src.views import main_page
 from datetime import datetime
+from unittest.mock import patch
+
+import pandas as pd
+import pytest
+
+from src.views import main_page
+
 
 @patch("src.views.pd.read_excel")
 @patch("src.views.calculate_spending_and_cashback")
@@ -71,7 +74,9 @@ def test_main_page(
     response_json = json.loads(response)
 
     # Проверка результатов
-    assert isinstance(response_json, dict)  # Убедитесь, что возвращается словарь (после загрузки JSON)
+    assert isinstance(
+        response_json, dict
+    )  # Убедитесь, что возвращается словарь (после загрузки JSON)
     assert "greeting" in response_json
     assert "cards" in response_json
     assert "top_transactions" in response_json

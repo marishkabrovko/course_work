@@ -1,7 +1,10 @@
-import pytest
-import pandas as pd
 from unittest.mock import patch
+
+import pandas as pd
+import pytest
+
 from src.reports import spending_by_category
+
 
 # Фикстура с данными, имитирующими содержание operations.xlsx
 @pytest.fixture
@@ -18,6 +21,7 @@ def sample_transactions():
         "Бонусы (включая кэшбэк)": [3, 4],
     }
     return pd.DataFrame(data)
+
 
 # Параметризованный тест для проверки различных категорий
 @pytest.mark.parametrize(
@@ -51,8 +55,13 @@ def test_spending_by_category(
     mock_read_excel.return_value = sample_transactions
 
     # Настраиваем mock-объекты для остальных зависимостей
-    mock_calculate_spending_and_cashback.return_value = (expected_spent, expected_cashback)
-    mock_get_top_transactions.return_value = sample_transactions.to_dict(orient="records")
+    mock_calculate_spending_and_cashback.return_value = (
+        expected_spent,
+        expected_cashback,
+    )
+    mock_get_top_transactions.return_value = sample_transactions.to_dict(
+        orient="records"
+    )
     mock_load_user_settings.return_value = {
         "user_currencies": ["USD", "EUR"],
         "user_stocks": ["AAPL", "AMZN"],
@@ -72,5 +81,6 @@ def test_spending_by_category(
     # Проверка результата
     assert result["cards"][0]["total_spent"] == expected_spent
     assert result["cards"][0]["cashback"] == expected_cashback
-    assert len(result["top_transactions"]) == len(mock_get_top_transactions.return_value)
-
+    assert len(result["top_transactions"]) == len(
+        mock_get_top_transactions.return_value
+    )
