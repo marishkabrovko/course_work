@@ -1,1 +1,49 @@
-[]
+{
+    "greeting": "Доброе утро",
+    "cards": [
+        {
+            "last_digits": "5814",
+            "total_spent": 0.0,
+            "cashback": 0.0
+        },
+        {
+            "last_digits": "7512",
+            "total_spent": 7.94,
+            "cashback": 0.08
+        }
+    ],
+    "top_transactions": [
+        {
+            "date": "31.12.2021 16:44:00",
+            "amount": -160.89,
+            "category": "Супермаркеты",
+            "description": "Колхоз"
+        },
+        {
+            "date": "31.12.2021 16:44:00",
+            "amount": -200.0,
+            "category": "Переводы",
+            "description": "Трансфер"
+        }
+    ],
+    "currency_rates": [
+        {
+            "currency": "USD",
+            "rate": 73.21
+        },
+        {
+            "currency": "EUR",
+            "rate": 87.08
+        }
+    ],
+    "stock_prices": [
+        {
+            "stock": "AAPL",
+            "price": 150.12
+        },
+        {
+            "stock": "AMZN",
+            "price": 3173.18
+        }
+    ]
+}

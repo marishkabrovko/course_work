@@ -1,10 +1,9 @@
-from unittest.mock import patch
-
-import pandas as pd
 import pytest
-
+import pandas as pd
+import json
+from unittest.mock import patch
 from src.views import main_page
-
+from datetime import datetime
 
 @patch("src.views.pd.read_excel")
 @patch("src.views.calculate_spending_and_cashback")
@@ -52,13 +51,13 @@ def test_main_page(
 
     mock_get_top_transactions.return_value = [
         {
-            "Дата операции": "2024-08-20",
+            "Дата операции": datetime(2024, 8, 20),
             "Сумма платежа": 300.0,
             "Категория": "Категория3",
             "Описание": "Описание3",
         },
         {
-            "Дата операции": "2024-08-10",
+            "Дата операции": datetime(2024, 8, 10),
             "Сумма платежа": 200.0,
             "Категория": "Категория2",
             "Описание": "Описание2",
@@ -66,10 +65,27 @@ def test_main_page(
     ]
 
     # Запрос к функции
-    response = main_page("2024-08-20 15:00:00")
+    response = main_page(df, "2024-08-20 15:00:00")
 
-    # Проверка ответа
-    assert response["greeting"] == "Добрый день"
-    assert response["cards"][0]["total_spent"] == 600.0
-    assert response["currency_rates"][0]["currency"] == "USD"
-    assert response["stock_prices"][0]["stock"] == "AAPL"
+    # Преобразование ответа из JSON строки в Python объект
+    response_json = json.loads(response)
+
+    # Проверка результатов
+    assert isinstance(response_json, dict)  # Убедитесь, что возвращается словарь (после загрузки JSON)
+    assert "greeting" in response_json
+    assert "cards" in response_json
+    assert "top_transactions" in response_json
+    assert "currency_rates" in response_json
+    assert "stock_prices" in response_json
+
+    # Дополнительные проверки в зависимости от содержания вашего ответа
+    assert response_json["greeting"] == "Добрый день"  # Проверьте приветствие
+    assert len(response_json["cards"]) == 2  # Убедитесь, что количество карточек верно
+    assert response_json["cards"][0]["total_spent"] == 600.0  # Проверьте сумму расходов
+    assert response_json["cards"][0]["cashback"] == 6.0  # Проверьте кэшбэк
+
+    # Проверка топовых транзакций
+    assert len(response_json["top_transactions"]) == 2
+    assert response_json["top_transactions"][0]["amount"] == 300.0
+    assert response_json["top_transactions"][0]["category"] == "Категория3"
+    assert response_json["top_transactions"][0]["description"] == "Описание3"

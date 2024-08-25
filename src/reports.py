@@ -35,9 +35,7 @@ def log_spending_by_category(filename: Any) -> Callable:
 
 
 @decorator_spending_by_category
-def spending_by_category(
-    transactions: pd.DataFrame, category: str, date: Optional[str] = None
-) -> dict:
+def spending_by_category(transactions: pd.DataFrame, category: str, date: Optional[str] = None) -> dict:
     """Функция возвращающая траты за последние 3 месяца по заданной категории и формирующая JSON-ответ"""
 
     logger.info("Начало работы")
